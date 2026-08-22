@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32g4xx_hal_tim.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -45,7 +46,10 @@ FDCAN_HandleTypeDef hfdcan1;
 TIM_HandleTypeDef htim2;
 
 /* USER CODE BEGIN PV */
-
+static const uint32_t servo_ccr_steps[4] = {51, 60, 80, 99};
+static volatile uint8_t servo_step_index = 0;
+static volatile uint32_t servo_step_counter = 0;
+#define SERVO_STEP_INTERVAL_MS 2000
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -53,13 +57,30 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_FDCAN1_Init(void);
 static void MX_TIM2_Init(void);
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM2)
+    {
+        servo_step_counter++;
 
+        /* 周期は20ms(50Hz)なので、2000ms / 20ms = 100回で次のステップへ */
+        uint32_t steps_needed = SERVO_STEP_INTERVAL_MS / 20;
+
+        if (servo_step_counter >= steps_needed)
+        {
+            servo_step_counter = 0;
+            servo_step_index = (servo_step_index + 1) % 4;
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo_ccr_steps[servo_step_index]);
+        }
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -93,7 +114,9 @@ int main(void)
   MX_FDCAN1_Init();
   MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);  
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo_ccr_steps[0]);  // 初期位置
+  HAL_TIM_Base_Start_IT(&htim2);   
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -103,14 +126,14 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,51);
-  HAL_Delay(2000);
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,60);
-  HAL_Delay(2000);
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,80);
-  HAL_Delay(2000);
-  __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,99);
-  HAL_Delay(2000);
+  // __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,51);
+  // HAL_Delay(2000);
+  // __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,60);
+  // HAL_Delay(2000);
+  // __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,80);
+  // HAL_Delay(2000);
+  // __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,99);
+  // HAL_Delay(2000);
   }
   /* USER CODE END 3 */
 }
@@ -248,7 +271,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM2;
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
   sConfigOC.Pulse = 0;
   sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
   sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
