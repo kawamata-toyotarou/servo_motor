@@ -47,8 +47,9 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-static const uint32_t servo_ccr_steps[4] = {51, 60, 80, 99};
-static volatile uint8_t servo_step_index = 0;
+static const uint32_t servo_ccr_steps[2] = {51, 80};  // 2段階(最小角/最大角)のみ
+static volatile uint8_t servo1_step_index = 0;
+static volatile uint8_t servo2_step_index = 0;
 static volatile uint32_t servo_step_counter = 0;
 #define SERVO_STEP_INTERVAL_MS 2000
 /* USER CODE END PV */
@@ -70,14 +71,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     if (htim->Instance == TIM2)
     {
         servo_step_counter++;
-        /* 周期は20ms(50Hz)なので、2000ms / 20ms = 100回で次のステップへ */
         uint32_t steps_needed = SERVO_STEP_INTERVAL_MS / 20;
 
         if (servo_step_counter >= steps_needed)
         {
             servo_step_counter = 0;
-            servo_step_index = (servo_step_index + 1) % 4;
-            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo_ccr_steps[servo_step_index]);
+
+            servo1_step_index = (servo1_step_index + 1) % 2;
+            servo2_step_index = (servo2_step_index + 1) % 2;
+
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo_ccr_steps[servo1_step_index]);
+            __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo_ccr_steps[servo2_step_index]);
         }
     }
 }
@@ -123,15 +127,10 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo_ccr_steps[0]);  // 初期位置
-  HAL_TIM_Base_Start_IT(&htim2);   
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_IWDGRST))  printf("RESET: IWDG\n");
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_WWDGRST))  printf("RESET: WWDG\n");
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_LPWRRST))  printf("RESET: LPWR\n");
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_SFTRST))   printf("RESET: SOFTWARE\n");
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_PINRST))   printf("RESET: NRST PIN\n");
-  if (__HAL_RCC_GET_FLAG(RCC_FLAG_BORRST))   printf("RESET: BROWN-OUT\n");
-  __HAL_RCC_CLEAR_RESET_FLAGS();
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);  
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, servo_ccr_steps[0]);
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, servo_ccr_steps[0]);  
+  HAL_TIM_Base_Start_IT(&htim2);
   /* USER CODE END 2 */
 
   /* Infinite loop */
