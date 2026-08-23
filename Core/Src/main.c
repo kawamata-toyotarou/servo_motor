@@ -148,7 +148,7 @@ int main(void)
   // HAL_Delay(2000);
   // __HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,99);
   // HAL_Delay(2000);
-  //printf("%d\n", servo_step_counter);
+  printf("%d\n", servo_step_counter);
   }
   /* USER CODE END 3 */
 }
@@ -299,6 +299,7 @@ static void MX_TIM2_Init(void)
   }
 
   /* 将来CH2/CH3(Servo2/Servo3)も使うなら同様にLOWで統一 */
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
   if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
